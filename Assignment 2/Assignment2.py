@@ -1,100 +1,45 @@
-import numpy as np
-from tkinter import Tk, Button, Label, Entry, Canvas, Frame
-from PIL import Image, ImageTk
 import sys
-
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
+from matplotlib.widgets import Button, TextBox
+from PIL import Image
 from PyQt5.QtWidgets import QApplication, QFileDialog
+import math
 
-class FilterImage():
+class FilterProcessing:
+    def __init__(self) -> None:
+        #Prompt the user to select an image file
+        self.image_array = self.load_image_via_dialog()
 
-    def __init__(self, root) -> None:
-        
-        #Assigning main tkinter window
-        self.root = root
-        self.root.title("Image Processing")
+        #Copy image for future processing
+        self.processed_img = self.image_array.copy()
+        self.sigma = 10.0
 
-        #Proper grid setup
-        self.root.grid_rowconfigure(0, weight=1)
-        self.root.grid_columnconfigure(1, weight=1)
+        #Set up the figure and axes
+        self.fig, (self.axes1, self.axes2) = plt.subplots(1, 2, figsize=(12, 5))
 
-        #Canvas for original image with noise
-        image_frame = Frame(self.root)
-        image_frame.grid(row=0, column=0, columnspan=4, padx=10, pady=10, sticky="ew")
+        #Adjust distance between subplots
+        plt.subplots_adjust(left=0.05, right=0.95, top=0.85, bottom=0.25, wspace=0.3)
 
-        #Canvas for displaying image on the left
-        self.canvas_left = Canvas(self.root, width=300, height=300)
-        self.canvas_left.grid(row=0, column=0, padx=1, pady=10)
+        #Display original image and placeholder for processed image, while checking for grayscale
+        self.axes1.imshow(self.image_array, cmap='gray' if self.image_array.ndim == 2 else None)
+        self.axes1.set_title('Original Image')
+        self.axes2.imshow(self.image_array, cmap='gray' if self.image_array.ndim == 2 else None)
+        self.axes2.set_title('Processed Image')
 
-        #Canvas for displaying image on right
-        self.canvas_right = Canvas(self.root, width=300, height=300)
-        self.canvas_right.grid(row=0, column=1, padx=1, pady=10)
+        #Disable axes for original and processed image
+        self.axes1.axis('off')
+        self.axes2.axis('off')
 
-        self.current_image = self.load_image_via_explorer()
+        #Create buttons and a text box
+        self.setup_buttons()
 
-        self.display_image(self.current_image, "left")
-
-        self.setp_buttons()
-
-    def setp_buttons(self):
-        """
-        Setup buttons for different image processing tasks.
-        """
-
-        # Set button width and height for uniformity
-        button_width = 15
-        button_height = 2
-
-        # Adjust grid column weights to ensure even distribution
-        for col in range(7):  # Total 7 columns for buttons and sigma entry
-            self.root.grid_columnconfigure(col, weight=1)
-
-        # Add Noise button
-        add_noise_button = Button(self.root, text="Add noise", width=button_width, height=button_height, command=self.add_noise)
-        add_noise_button.grid(row=2, column=0, padx=5, pady=5, sticky="ew")
-
-        # 5x5 Triangle button
-        triangle_button = Button(self.root, text="5x5 Triangle", width=button_width, height=button_height, command=self.triangle_filter)
-        triangle_button.grid(row=2, column=1, padx=5, pady=5, sticky="ew")
-
-        # Sigma Label and Entry - Span across 2 columns for more space
-        sigma_frame = Frame(self.root)
-        sigma_frame.grid(row=2, column=2, columnspan=2, padx=5, pady=5, sticky="ew")
-
-        sigma_label = Label(sigma_frame, text="Sigma:")
-        sigma_label.pack(side="left", padx=5)
-
-        self.sigma_entry = Entry(sigma_frame, width=10)
-        self.sigma_entry.pack(side="left", padx=5)
-
-        # 5x5 Gaussian button
-        gaussian_button = Button(self.root, text="5x5 Gaussian", width=button_width, height=button_height, command=self.gaussian_filter)
-        gaussian_button.grid(row=2, column=4, padx=5, pady=5, sticky="ew")
-
-        # 5x5 Median button
-        median_button = Button(self.root, text="5x5 Median", width=button_width, height=button_height, command=self.median_filter)
-        median_button.grid(row=2, column=5, padx=5, pady=5, sticky="ew")
-
-        # 5x5 Kuwahara button
-        kuwahara_button = Button(self.root, text="5x5 Kuwahara", width=button_width, height=button_height, command=self.kuwahara_filter)
-        kuwahara_button.grid(row=2, column=6, padx=5, pady=5, sticky="ew")
-
-        # Configure row height to stretch proportionally
-        self.root.grid_rowconfigure(2, weight=1)
+        #Set up layout and show the plot
+        plt.subplots_adjust(bottom=0.25)
 
 
-    def display_image(self, image_array, side):
-        image_array = np.clip(image_array, 0, 255).astype(np.uint8)
-        img = Image.fromarray(image_array)
-        imgtk = ImageTk.PhotoImage(image=img)
-
-        if side == "left":
-            self.canvas_left.create_image(0, 0, anchor="nw", image=imgtk)
-            self.canvas_left.image = imgtk
-        elif side == "right":
-            self.canvas_right.create_image(0, 0, anchor="nw", image=imgtk)
-            self.canvas_right.image = imgtk
-
-    def load_image_via_explorer(self):
+    def load_image_via_dialog(self):
         """
         Dynamically select an image via a file explorer to create histograms for
         """
@@ -115,133 +60,335 @@ class FilterImage():
         #Open image and convert to numpy array
         img = Image.open(path)
 
-        #Check if the image is grayscale, then preform normalization accordingly
-        if img.mode == 'L':  #Grayscale mode
-            return np.array(img) #/ 255.0  #Normalize grayscale image
+        #Check if the image is grayscale
+        if img.mode == 'L':  
+            return np.array(img) / 255.0  
         else:
-            return np.array(img.convert('RGB')) #/ 255.0  #Normalize RGB image
+            return np.array(img.convert('RGB')) / 255.0  
 
-    
-    def convolution(self, image, kernel):
+    def setup_buttons(self):
         """
-        Method for convolution of kernal and image
+        Setup buttons for different image processing tasks.
         """
+        #Add noise button
+        but_noise = plt.axes([0.05, 0.01, 0.10, 0.05])
+        button_noise = Button(but_noise, "Add Noise")
+        button_noise.on_clicked(lambda event: self.add_noise())
 
-        image_height, image_width = image.shape
+        #Triangle Filter button
+        but_tri_filt = plt.axes([0.20, 0.01, 0.10, 0.05])
+        button_triangle = Button(but_tri_filt, "Triangle Filter")
+        button_triangle.on_clicked(lambda event: self.triangle_filter())
 
-    def add_noise(self):
+        #Median filter button
+        but_med_filt = plt.axes([0.35, 0.01, 0.10, 0.05])
+        button_median = Button(but_med_filt, "Median Filter")
+        button_median.on_clicked(lambda event: self.median_filter())
+
+        #Sigma value text input
+        sigma_box_txt = plt.axes([0.45, 0.90, 0.1, 0.05])
+        sigma_box = TextBox(sigma_box_txt, 'Sigma Value', initial="10")
+        sigma_box.on_submit(self.update_sigma)
+
+        #Gaussian filter button
+        but_gaussian_filt = plt.axes([0.50, 0.01, 0.10, 0.05])
+        button_gaussian = Button(but_gaussian_filt, "Gaussian Filter")
+        button_gaussian.on_clicked(lambda event: self.gaussian_filter(self.processed_img, self.sigma))
+
+        #Kuwahara filter button
+        but_kuw_filt = plt.axes([0.65, 0.01, 0.10, 0.05])
+        button_kuw = Button(but_kuw_filt, "Kuwahara Filter")
+        button_kuw.on_clicked(lambda event: self.kuwahara_filter())
+
+        #Mean filter button
+        but_mean_filt = plt.axes([0.80, 0.01, 0.10, 0.05])
+        button_mean = Button(but_mean_filt, "Mean Filter")
+        button_mean.on_clicked(lambda event: self.mean_filter())
+
+        plt.show()
+
+    def update_sigma(self, text):
         """
-        Add Gaussian noise to image
+        Update the sigma value based on the user input.
         """
-        #Retirves value from GUI
-        sigma = float(self.sigma_entry.get())
+        self.sigma = float(text)
+        print(f"Sigma value updated to: {self.sigma}")
+        return self.sigma
+        
 
-        #If value is 0/negative, add no noise
-        if sigma <= 0:
-            return
-
-        #Apply Gaussian noise and add to image, then clip it to ensure values remain between 0,1
-        #then update current image and diaplay on right
-
-        noise = np.random.normal(0, sigma, self.current_image.shape)
-        noisy_image = self.current_image + noise
-        noisy_image = np.clip(noisy_image, 0, 255)
-        self.current_image = noisy_image
-        self.display_image(self.current_image, "right")
-
-    def triangle_filter(self):
+    def horizontal_filter(self, image, kernel, k_sum, w):
         """
-        Wrapper to apply horizontal and vertial filter
-        """
-
-        #w=2 for 5x5
-        w = 2
-
-        #Triangle filter weights
-        triangle = np.array([1, 2, 3, 2, 1])
-        k_sum = np.sum(triangle)
-
-        #Intermediate image with only horizontal
-        temp = self.horizontal_filter(self.current_image, triangle, w)
-
-        #Apply vertical filter
-        filtered_image = self.vertical_filter(temp, triangle, w)
-
-        #Call to display image function to show image
-        self.display_image(filtered_image)
-
-    def gaussian_filter(self):
-        """
-        Wrapper to apply horizontal and vertial filter
-        """
-
-        #w=2 for 5x5
-        w = 2
-
-        #Triangle filter weights
-        gaussian = np.array([1, 4, 6, 4, 1])
-        k_sum = np.sum(gaussian)
-
-        #Intermediate image with only horizontal
-        temp = self.horizontal_filter(self.current_image, gaussian, k_sum, w)
-
-        #Apply vertical filter
-        filtered_image = self.vertical_filter(temp, gaussian, w)
-
-        #Call to display image function to show image
-        self.display_image(filtered_image)
-
-    def horizontal_filter(self, image, kernal, k_sum, w):
-        """
-        Function to apply horizontal filter
+        Function to apply a horizontal filter with padding.
+        Works for both grayscale and RGB images.
         """
 
-        #Assign height and width, and assign T as a temp buffer
-        height, width = image.shape
+        #Get image dimensions depending on image type
+        if image.ndim == 2:
+            height, width = image.shape
+            channels = 1
+        elif image.ndim == 3:
+            height, width, channels = image.shape
+        else:
+            raise ValueError("Unsupported image format")
+
+        if channels == 1:
+            #Pad only the width 
+            padded_img = np.pad(image, ((0, 0), (w, w)), mode='edge')
+        else:
+            #Pad the width and keep the color channels for RGB
+            padded_img = np.pad(image, ((0, 0), (w, w), (0, 0)), mode='edge')
+
+        #Initialize output buffer
         T = np.zeros_like(image)
 
+        #Loop through each row
         for q in range(height):
-            #Loop throuhg each row, compute sum of first 2 * w + 1 row, q represents rows, p represents columns
-            #then compute average for fist window and store in T
-            h_sum = np.sum(image[q, :2 * w + 1] * kernal)
-            T[q,w] = h_sum / k_sum
-
-            #Update rest of row
-            for p in range(w + 1, width -w):
-                #Update h_sum by adding pixel entering window,
-                #and suptracting pixel leaving, then store average in T
-                h_sum += (image[q, p + w] * kernal[-1]) - (image[q, p - w - 1] * kernal[0])
-                T[q,p] = h_sum / k_sum
+            for c in range(channels):
+                if channels == 1:
+                    for p in range(width):
+                        h_sum = np.sum(padded_img[q, p:p + 2 * w + 1] * kernel)
+                        T[q, p] = h_sum / k_sum
+                else:
+                    for p in range(width):
+                        h_sum = np.sum(padded_img[q, p:p + 2 * w + 1, c] * kernel)
+                        T[q, p, c] = h_sum / k_sum
 
         return T
+
     
-    def vertical_filter(self, T, kernal, k_sum, w):
+    def vertical_filter(self, T, kernel, k_sum, w):
         """
-        Function to apply vertical filter
+        Function to apply a vertical filter with padding.
+        Works for both grayscale and RGB images.
         """
 
-        #Assign height and width as dimensions of T, and assign G as a temp buffer
-        height, width = T.shape
+        #Get image dimensions depending on image type
+        if T.ndim == 2: 
+            height, width = T.shape
+            channels = 1
+        elif T.ndim == 3:  
+            height, width, channels = T.shape
+
+        if channels == 1: 
+            #Pad only the width
+            padded_img = np.pad(T, ((w, w), (0, 0)), mode='edge')
+        else:
+            #Pad the width and keep the color channels for RGB
+            padded_img = np.pad(T, ((w, w), (0, 0), (0, 0)), mode='edge')
+
+
+        #Initialize output buffer
         V = np.zeros_like(T)
 
+        #Loop through each column
         for p in range(width):
-            #Loop throuhg each column,
-            v_sum = np.sum(T[:2 * w + 1, p])
-            V[w,p] = v_sum / (2 * w + 1)
-
-            for q in range(w + 1, height - w):
-                v_sum += T[q + w, p] - T[q - w - 1, p]
-                V[q,p] = v_sum / (2 * w + 1)
+            for c in range(channels):
+                if channels == 1:
+                    for q in range(height):
+                        v_sum = np.sum(padded_img[q:q + 2 * w + 1, p] * kernel)
+                        V[q, p] = v_sum / k_sum
+                else:
+                    for q in range(height):
+                        v_sum = np.sum(padded_img[q:q + 2 * w + 1, p, c] * kernel)
+                        V[q, p, c] = v_sum / k_sum
 
         return V
     
+    def add_noise(self):
+        """
+        Add Gaussian Noise to image
+        """
+        #Generate noise and apply to image, then clip
+        noise = np.random.normal(0, 0.05, self.processed_img.shape)
+        img_n = self.processed_img + noise
+        img_n = np.clip(img_n, 0, 1)
+
+        #Reassign new noisey image to processed_image
+        self.processed_img = img_n
+
+        #Update display
+        if self.processed_img.ndim == 2:
+            self.axes2.imshow(self.processed_img, cmap='gray')
+        else:
+            self.axes2.imshow(self.processed_img)
+            
+        plt.draw() 
+
+
+    def gaussian_filter(self, image, sigma):
+        """
+        Apply a Gaussian filter to the image with a specified sigma.
+        """
+        def g_kernal(w, sigma):
+            """
+            Helper function to generate a Gaussian Kernel
+            """
+            kernel = [math.exp(-i**2 / (2 * sigma**2)) for i in range(-w, w + 1)]
+            return np.array(kernel) / np.sum(kernel) 
+
+        #Create horizontal and vertical filters
+        w = 2 
+        kernel_h = g_kernal(w, sigma)
+        kernel_v = g_kernal(w, sigma)
+
+        #Apply horizontal filter, then vertical
+        T = self.horizontal_filter(image, kernel_h, np.sum(kernel_h), w)
+        result = self.vertical_filter(T, kernel_v, np.sum(kernel_v), w)
+
+        #Save the processed image
+        self.processed_img = result
+
+        #Update the display
+        if self.processed_img.ndim == 2:
+            self.axes2.imshow(self.processed_img, cmap='gray')
+        else:
+            self.axes2.imshow(self.processed_img)
+
+        plt.draw() 
+
+    def triangle_filter(self):
+        """
+        Apply triangle filter to image
+        """
+        #Triangle filter
+        kernel = np.array([1, 2, 3, 2, 1]) / 9
+
+        #Apply the horizontal and vertical filters
+        T = self.horizontal_filter(self.processed_img, kernel, np.sum(kernel), 2)
+        result = self.vertical_filter(T, kernel, np.sum(kernel), 2)
+
+        #Save the processed image
+        self.processed_img = result
+
+        #Update the display
+        if self.processed_img.ndim == 2:
+            self.axes2.imshow(self.processed_img, cmap='gray')
+        else:
+            self.axes2.imshow(self.processed_img)
+            
+        plt.draw() 
+
     def median_filter(self):
-        pass
+        """
+        Functiion to apply median filter
+        """
+        #Assign image variable for easier readability
+        image = self.processed_img
+
+        w = 2
+
+        if image.ndim == 2:
+            padded_img = np.pad(image, ((w, w), (w, w)), mode='edge')
+            result = np.zeros_like(image)
+            for i in range(image.shape[0]):
+                for j in range(image.shape[1]):
+                    result[i, j] = np.median(padded_img[i:i + 2 * w + 1, j:j + 2 * w + 1])
+        else:
+            padded_img = np.pad(image, ((w, w), (w, w), (0, 0)), mode='edge')
+            result = np.zeros_like(image)
+            for c in range(3):
+                for i in range(image.shape[0]):
+                    for j in range(image.shape[1]):
+                        result[i, j, c] = np.median(padded_img[i:i + 2 * w + 1, j:j + 2 * w + 1, c])
+
+        #Save the processed image
+        self.processed_img = result
+
+        #Update the display
+        if self.processed_img.ndim == 2:
+            self.axes2.imshow(self.processed_img, cmap='gray')
+        else:
+            self.axes2.imshow(self.processed_img)
+            
+        plt.draw() 
 
     def kuwahara_filter(self):
-        pass
+        """
+        Apply the Kuwahara filter
+        """
+
+        #Assign image variable for easier readability
+        image = self.processed_img
+        result = np.zeros_like(image)
+        w = 2
+
+        if image.ndim == 2:
+            #Pad the image
+            padded_img = np.pad(image, ((w, w), (w, w)), mode='edge')
+            result = np.zeros_like(image)
+
+            #Loop over pixels, define the overlapping regions
+            for i in range(image.shape[0]):
+                for j in range(image.shape[1]):
+                    regions = []
+                    for r in [(0, 0), (0, 2), (2, 0), (2, 2)]:
+                        regions.append(padded_img[i + r[0]:i + r[0] + 3, j + r[1]:j + r[1] + 3])
+
+                    #Mean and variance for each region
+                    mean = [np.mean(region) for region in regions]
+                    var = [np.var(region) for region in regions]
+
+                    #Find the region with the smallest variance and set mean
+                    min_var = np.argmin(var)
+                    result[i, j] = mean[min_var]
+
+        else:
+            #Pad the image
+            padded_img = np.pad(image, ((w, w), (w, w), (0, 0)), mode='edge')
+            result = np.zeros_like(image)
+
+            #Loop over each color channel, define the overlapping regions
+            for c in range(3):
+                for i in range(image.shape[0]):
+                    for j in range(image.shape[1]):
+                        regions = []
+                        for r in [(0, 0), (0, 2), (2, 0), (2, 2)]:
+                            regions.append(padded_img[i + r[0]:i + r[0] + 3, j + r[1]:j + r[1] + 3, c])
+
+                        #Mean and variance for each region
+                        mean = [np.mean(region) for region in regions]
+                        var = [np.var(region) for region in regions]
+
+                        #Find the region with the smallest variance and set mean
+                        min_var = np.argmin(var)
+                        result[i, j, c] = mean[min_var]
+
+        #Save the processed image
+        self.processed_img = result
+
+        #Update the display with the processed image
+        if self.processed_img.ndim == 2:
+            self.axes2.imshow(self.processed_img, cmap='gray')
+        else:
+            self.axes2.imshow(self.processed_img)
+            
+        plt.draw() 
+
+    def mean_filter(self):
+        """
+        Function for applying mean filter
+        """
+
+        #Assign image variable for easier readability
+        image = self.processed_img
+        w = 2
+
+        #Kernel for mean filter
+        kernel = np.array([1, 1, 1, 1, 1]) / 5
+
+        T = self.horizontal_filter(image, kernel, np.sum(kernel), w)
+        result = self.vertical_filter(T, kernel, np.sum(kernel), w)
+
+        #Save the processed image
+        self.processed_img = result
+
+        #Update the display with the processed image
+        if self.processed_img.ndim == 2:
+            self.axes2.imshow(self.processed_img, cmap='gray')
+        else:
+            self.axes2.imshow(self.processed_img)
+            
+        plt.draw() 
 
 if __name__ == "__main__":
-    root = Tk()
-    test = FilterImage(root)
-    root.mainloop()
+    test = FilterProcessing()
