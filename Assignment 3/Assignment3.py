@@ -1,7 +1,6 @@
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.pyplot as plt
 from matplotlib.widgets import Button, TextBox
 from PIL import Image
 from PyQt5.QtWidgets import QApplication, QFileDialog
@@ -39,13 +38,25 @@ class Image_Thresholding:
         self.man_thresh = 128
         self.offset = 10
 
-        #Display the initial histogram
         self.display_histogram(self.processed_img)
 
-        #Create buttons and a text box
+        if self.processed_img.ndim == 3:
+            colours = ['red', 'green', 'blue']
+            for i in range(3):
+                mean_intensity = np.mean(self.processed_img[:, :, i]) * 255
+                self.axes2.axvline(x=mean_intensity, color=colours[i], linestyle='--')
+                print(f"Mean intensity for {colours[i]}: {mean_intensity}")
+        elif self.processed_img.ndim == 2:
+            mean_intensity = np.mean(self.processed_img) * 255
+            self.axes2.axvline(x=mean_intensity, color='black', linestyle='--')
+
+           
+
+
+    # Create buttons and a text box
         self.setup_buttons()
 
-        #Set up layout and show the plot
+    # Set up layout and show the plot
         plt.subplots_adjust(bottom=0.25)
 
         
@@ -234,10 +245,12 @@ class Image_Thresholding:
         #Define number that will act as guard to keep algo going untill we go below
         min_num = 0.0005
 
-        #and deltaT as large number
-        deltaT = 1000000000
+        
+        
 
         if self.processed_img.ndim == 2:
+            #and deltaT as large number
+            deltaT = 1000000000
             #Init T(initial threshold) as mean of image
             T = np.mean(self.processed_img)
 
@@ -267,6 +280,8 @@ class Image_Thresholding:
             #Calculate the mean of each group, find average, and assign the abs(T - Tnew) to delta T, then assign T as
             #the new T, now repeat for each colour channel
             for i in range(3):
+                #and deltaT as large number
+                deltaT = 1000000000
                 T = np.mean(self.processed_img[:, :, i])
                 while deltaT > min_num:
 
@@ -283,6 +298,7 @@ class Image_Thresholding:
                     T = Tnew
 
                 final_threshold = T
+                print(T)
 
                 self.processed_img[:, :, i] = np.where(self.processed_img[:, :, i] >= final_threshold, 1, 0)
 
