@@ -9,6 +9,9 @@ import math
 class Image_Thresholding:
 
     def __init__(self):
+        #Init a variable for storing future istogram data
+        self.histograms = None
+
         #Prompt the user to select an image file
         self.image_array = self.load_image_via_dialog()
 
@@ -38,7 +41,7 @@ class Image_Thresholding:
         self.man_thresh = 128
         self.offset = 10
 
-        self.display_histogram(self.processed_img)
+        self.histograms = self.display_histogram(self.processed_img)
 
         if self.processed_img.ndim == 3:
             colours = ['red', 'green', 'blue']
@@ -136,7 +139,7 @@ class Image_Thresholding:
         self.man_thresh = float(text)
         print(f"Manual Threshold Value updated to {self.man_thresh}")
         self.axes2.clear()
-        self.display_histogram(self.processed_img)
+        self.histograms = self.display_histogram(self.processed_img)
         if self.processed_img.ndim == 2:
             self.axes2.axvline(x=self.man_thresh, color='black', linestyle='--')
 
@@ -162,7 +165,6 @@ class Image_Thresholding:
         """
         print("Reseting to original image...")
         self.processed_img = self.image_array.copy()
-        self.display_histogram(self.processed_img)
 
         #Update display
         if self.processed_img.ndim == 2:
@@ -170,14 +172,17 @@ class Image_Thresholding:
         else:
             self.axes3.imshow(self.processed_img)
         
-        self.display_histogram(self.processed_img)
+        self.histograms = self.display_histogram(self.processed_img)
         plt.draw() 
 
-    def display_histogram(self, image):
+    def display_histogram(self, image, display=True):
         """
-        Function used for displaying histogram
+        Function used for displaying histograms and returning data
+        If we just want to return data, we can set display to false
         """
         self.axes2.clear()
+
+        histogram = []
 
         #Check if grayscale image
         if image.ndim == 2:
@@ -189,14 +194,17 @@ class Image_Thresholding:
                 for pixel in row:
                     intensity_val = int(pixel * 255)
                     histogram[intensity_val] += 1
-                    #Plot bins for histogram, and draw vertical line for threshold
-            self.axes2.plot(range(256), histogram, color='black')
+
+            if display == True:
+                #Plot bins for histogram, and draw vertical line for threshold
+                self.axes2.plot(range(256), histogram, color='black')
 
         #Check if RGB image
         elif image.ndim == 3:
             histogram_r = [0] * 256
             histogram_g = [0] * 256 
             histogram_b = [0] * 256
+
             #For each pixel in each row, for all channels, check intensity values 
             #and increment value in each channel of the histogram array if intensity 
             #values matches
@@ -206,16 +214,22 @@ class Image_Thresholding:
                     histogram_r[r] += 1
                     histogram_g[g] += 1
                     histogram_b[b] += 1
-                    #Plot bins for histogram
-            self.axes2.plot(range(256), histogram_r, color='red')
-            self.axes2.plot(range(256), histogram_g, color='green')
-            self.axes2.plot(range(256), histogram_b, color='blue')
 
-        #Update display and set axes labels
-        self.axes2.set_xlabel('Intensity')
-        self.axes2.set_ylabel('Frequency')
-        self.axes2.set_title('Image Histogram')
-        self.fig.canvas.draw_idle()
+            if display == True:
+                #Plot bins for histogram and store in histograms variable
+                self.axes2.plot(range(256), histogram_r, color='red')
+                self.axes2.plot(range(256), histogram_g, color='green')
+                self.axes2.plot(range(256), histogram_b, color='blue')
+            histogram = [histogram_r, histogram_g, histogram_b]
+
+        if display == True:
+            #Update display and set axes labels
+            self.axes2.set_xlabel('Intensity')
+            self.axes2.set_ylabel('Frequency')
+            self.axes2.set_title('Image Histogram')
+            self.fig.canvas.draw_idle()
+
+        return histogram
 
     def manual_threshold(self):
         """
@@ -234,7 +248,7 @@ class Image_Thresholding:
                 self.processed_img[:, :, i] = np.where(self.processed_img[:, :, i] >= threshold, 1, 0)
             self.axes3.imshow(self.processed_img)
         
-        self.display_histogram(self.processed_img)
+        self.histograms = self.display_histogram(self.processed_img)
         plt.draw() 
 
     def auto_threshold(self):
@@ -308,7 +322,130 @@ class Image_Thresholding:
         else:
             self.axes3.imshow(self.processed_img)
 
-        self.display_histogram(self.processed_img)
+        self.histograms = self.display_histogram(self.processed_img)
+        plt.draw()
+
+    def otsu_threshold(self):
+        """
+        Applys otsu thresholding method
+        """
+        #Check if RGB
+        if self.processed_img.ndim == 3:
+            thresholds = []
+            self.histograms = self.display_histogram(self.processed_img, display=False)
+
+            #For each color channel get probability distribution of intensity levels
+            for i in range(3):
+                histogram = np.array(self.histograms[i])
+                pixels = histogram.sum()
+
+                probability = histogram / pixels
+
+                #Dot product of intensity levels and probability distribution
+                mean_total = np.dot(np.arange(256), probability)
+
+                #Initialize variables
+                max = 0
+                optimal_threshold = 0
+                w0 = 0  #Probability of class 0
+                sum0 = 0  #Sum for class 0
+
+                #Iterate through all possible ranges of threshold values, add to w0
+                for j in range(256):
+                    w0 += probability[j]
+
+                    #Avoid division by 0
+                    if w0 == 0:
+                        continue
+
+                    #Probability of class 1
+                    w1 = 1 - w0
+                    if w1 == 0:
+                        break
+
+                    #Update class 0 sum and calc the means for both classes
+                    sum0 += j * probability[j]
+                    mean0 = sum0 / w0
+                    mean1 = (mean_total - sum0) / w1
+
+                    #Compute variance
+                    variance = w0 * w1 * (mean0 - mean1) ** 2
+
+                    #Update variance and optimal threshold accordingly
+                    if variance > max:
+                        max = variance
+                        optimal_threshold = j
+
+                #Store optimal threshold for the corresponding channel
+                thresholds.append(optimal_threshold)
+
+            #Apply optimal threshold for each channel
+            for i in range(3):
+                self.processed_img[:, :, i] = np.where(self.processed_img[:, :, i] >= thresholds[i] / 255, 1, 0)
+
+            #####################
+            #NOT WORKING FIX#
+            #####################
+            colours = ['red', 'green', 'blue']
+            for i in range(3):
+                self.axes2.axvline(x=thresholds[i], color=colours[i], linestyle='--')
+
+        #Check if grayscale
+        elif self.processed_img.ndim == 2:
+            histogram = np.array(self.display_histogram(self.processed_img, display=False))
+            pixels = histogram.sum()
+
+            #Get probability distribution of each intensity level
+            probability = histogram / pixels
+
+            #Dot product of intensity levels and probability distribution
+            mean_total = np.dot(np.arange(256), probability)
+
+            #Initialize variables
+            max = 0
+            optimal_threshold = 0
+            w0 = 0  #Probability of class 0
+            sum0 = 0  #Sum of class 0
+
+            #Iterate through all possible ranges of threshold values, add to w0
+            for j in range(256):
+                w0 += probability[j]
+
+                #Avoid division by 0
+                if w0 == 0:
+                    continue
+
+                #Probability of class 1
+                w1 = 1 - w0
+                if w1 == 0:
+                    break
+
+                #Update class 0 sum and calc the means for both classes
+                sum0 += j * probability[j]
+                mean0 = sum0 / w0
+                mean1 = (mean_total - sum0) / w1
+
+                #Compute variance
+                variance = w0 * w1 * (mean0 - mean1) ** 2
+
+                #Update variance and optimal threshold accordingly
+                if variance > max:
+                    max = variance
+                    optimal_threshold = j
+
+            #Apply optimal threshold
+            self.processed_img = np.where(self.processed_img >= optimal_threshold, 1, 0)
+            
+            #####FIX####
+            self.axes2.axvline(x=optimal_threshold, color='black', linestyle='--')
+
+        #Update display
+        if self.processed_img.ndim == 2:
+            self.axes3.imshow(self.processed_img, cmap='gray')
+        else:
+            self.axes3.imshow(self.processed_img)
+
+        self.histograms = self.display_histogram(self.processed_img)
         plt.draw()
 
 if __name__ == "__main__":
