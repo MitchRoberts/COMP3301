@@ -216,7 +216,7 @@ class Image_Thresholding:
                     histogram_b[b] += 1
 
             if display == True:
-                #Plot bins for histogram and store in histograms variable
+                #Plot lines for histogram and store in histograms variable
                 self.axes2.plot(range(256), histogram_r, color='red')
                 self.axes2.plot(range(256), histogram_g, color='green')
                 self.axes2.plot(range(256), histogram_b, color='blue')
@@ -447,6 +447,69 @@ class Image_Thresholding:
 
         self.histograms = self.display_histogram(self.processed_img)
         plt.draw()
+
+    def adaptive_threshold(self):
+        """
+        Applys adaptive thresholding method (Mean C approach)
+        """
+
+        #Initialize window size and offset
+        window_size = 7
+        offset = self.offset / 255
+
+        temp_img = self.processed_img
+
+        #Check if grayscale
+        if self.processed_img.ndim == 2:
+
+            #Pad image for border handling
+            img_pad = np.pad(self.processed_img, window_size // 2, mode='constant', constant_values=0)
+
+            #Iterate over each pixel of image
+            for i in range(self.processed_img.shape[0]):
+                for j in range(self.processed_img[1]):
+
+                    #Get window around pixel, calculate the mean and apply the threshold
+                    #with user inputted offset value
+                    window = img_pad[i:i + window_size, j:j + window_size]
+                    mean = np.mean(window)
+                    if self.processed_img[i,j] >= (mean - offset):
+                        temp_img[i,j] = 1
+                    else:
+                        temp_img[i,j] = 0
+        
+        #Check if RGB
+        if self.processed_img.ndim  == 3:
+
+            #Iterate over each channel
+            for channel in range(3):
+
+                #Pad channel for border handling
+                img_pad_channel = np.pad(self.processed_img[:, :, channel], window_size // 2, mode='constant', constant_values=0)
+
+                #Iterate over each pixel of the channel
+                for i in range(self.processed_img.shape[0]):
+                    for j in range(self.processed_img.shape[1]):
+
+                        window = img_pad_channel[i:i + window_size, j:j + window_size]
+                        mean = np.mean(window)
+                        if self.processed_img[i, j, channel] >= (mean - offset):
+                            temp_img[i, j, channel] = 1
+                        else:
+                            temp_img[i, j, channel] = 0
+        
+        #Assign image to temp image
+        self.processed_img = temp_img
+
+         #Update display
+        if self.processed_img.ndim == 2:
+            self.axes3.imshow(self.processed_img, cmap='gray')
+        else:
+            self.axes3.imshow(self.processed_img)
+
+        self.histograms = self.display_histogram(self.processed_img)
+        plt.draw()
+
 
 if __name__ == "__main__":
     test = Image_Thresholding()
