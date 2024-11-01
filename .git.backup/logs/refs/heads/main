@@ -1,0 +1,4 @@
+0000000000000000000000000000000000000000 7de4c51b776fd6f541a7a5141e0c524f1d08ceec LeoFGilbert <leofgilbert@gmail.com> 1729231460 -0230	clone: from https://github.com/MitchRoberts/COMP3301.git
+7de4c51b776fd6f541a7a5141e0c524f1d08ceec cc2e2640a67ffe4f4ce1cf26faae515e5a09cd69 LeoFGilbert <leofgilbert@gmail.com> 1729231667 -0230	pull: Fast-forward
+cc2e2640a67ffe4f4ce1cf26faae515e5a09cd69 6ff628d1c82d9c03b6f20d6a1ab93844d96f9722 LeoFGilbert <leofgilbert@gmail.com> 1730210255 -0230	commit: Added functions for thresholding
+6ff628d1c82d9c03b6f20d6a1ab93844d96f9722 351cced326e35aca5dbb098291e97071b9afc0d9 LeoFGilbert <leofgilbert@gmail.com> 1730219564 -0230	commit: most recent changes, manual thresholding done
