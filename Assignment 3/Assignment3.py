@@ -165,6 +165,7 @@ class Image_Thresholding:
         """
         print("Reseting to original image...")
         self.processed_img = self.image_array.copy()
+        self.axes2.clear()
 
         #Update display
         if self.processed_img.ndim == 2:
@@ -180,7 +181,7 @@ class Image_Thresholding:
         Function used for displaying histograms and returning data
         If we just want to return data, we can set display to false
         """
-        self.axes2.clear()
+        #self.axes2.clear()
 
         histogram = []
 
@@ -235,32 +236,34 @@ class Image_Thresholding:
         """
         Apply the manual thresholding function
         """
+        self.axes2.clear()
         print("Applying Manual Threshold...")
         threshold = self.man_thresh / 255
         
 
         #Update display
         if self.processed_img.ndim == 2:
-            self.processed_img = np.where(self.image_array >= (threshold), 1, 0)
+            self.processed_img = np.where(self.processed_img >= (threshold), 1, 0)
+            self.axes2.axvline(x=threshold * 256, color='black', linestyle='--')
             self.axes3.imshow(self.processed_img, cmap='gray')
         else:
+            colours = ['red', 'green', 'blue']
             for i in range(3):
                 self.processed_img[:, :, i] = np.where(self.processed_img[:, :, i] >= threshold, 1, 0)
+                self.axes2.axvline(x=threshold * 256, color=colours[i], linestyle='--')
             self.axes3.imshow(self.processed_img)
-        
+
         self.histograms = self.display_histogram(self.processed_img)
-        plt.draw() 
+        plt.draw()
 
     def auto_threshold(self):
         """
         Apply the automatic thresholding function according to the image histogram
         """
+        self.axes2.clear()
 
         #Define number that will act as guard to keep algo going untill we go below
         min_num = 0.0005
-
-        
-        
 
         if self.processed_img.ndim == 2:
             #and deltaT as large number
@@ -274,6 +277,10 @@ class Image_Thresholding:
             while deltaT > min_num:
                 G1 = self.processed_img[self.processed_img <= T]
                 G2 = self.processed_img[self.processed_img > T]
+
+                #Check case for infinite loop
+                if len(G1) == 0 or len(G2) == 0:
+                    break
 
                 mew1 = np.mean(G1)
                 mew2 = np.mean(G2)
@@ -294,6 +301,7 @@ class Image_Thresholding:
             #Calculate the mean of each group, find average, and assign the abs(T - Tnew) to delta T, then assign T as
             #the new T, now repeat for each colour channel
             for i in range(3):
+                thresholds = []
                 #and deltaT as large number
                 deltaT = 1000000000
                 T = np.mean(self.processed_img[:, :, i])
@@ -301,6 +309,10 @@ class Image_Thresholding:
 
                     G1 = self.processed_img[:, :, i][self.processed_img[:, :, i] <= T]
                     G2 = self.processed_img[:, :, i][self.processed_img[:, :, i] > T]
+
+                    #Check case for infinite loop
+                    if len(G1) == 0 or len(G2) == 0:
+                        break
 
                     mew1 = np.mean(G1)
                     mew2 = np.mean(G2)
@@ -312,7 +324,7 @@ class Image_Thresholding:
                     T = Tnew
 
                 final_threshold = T
-                print(T)
+                thresholds.append(T)
 
                 self.processed_img[:, :, i] = np.where(self.processed_img[:, :, i] >= final_threshold, 1, 0)
 
@@ -321,17 +333,21 @@ class Image_Thresholding:
             self.axes3.imshow(self.processed_img, cmap='gray')
         else:
             self.axes3.imshow(self.processed_img)
+           
 
         self.histograms = self.display_histogram(self.processed_img)
         plt.draw()
+        
 
     def otsu_threshold(self):
         """
         Applys otsu thresholding method
         """
+        self.axes2.clear()
+
+        thresholds = []
         #Check if RGB
         if self.processed_img.ndim == 3:
-            thresholds = []
             self.histograms = self.display_histogram(self.processed_img, display=False)
 
             #For each color channel get probability distribution of intensity levels
@@ -383,13 +399,6 @@ class Image_Thresholding:
             for i in range(3):
                 self.processed_img[:, :, i] = np.where(self.processed_img[:, :, i] >= thresholds[i] / 255, 1, 0)
 
-            #####################
-            #NOT WORKING FIX#
-            #####################
-            colours = ['red', 'green', 'blue']
-            for i in range(3):
-                self.axes2.axvline(x=thresholds[i], color=colours[i], linestyle='--')
-
         #Check if grayscale
         elif self.processed_img.ndim == 2:
             histogram = np.array(self.display_histogram(self.processed_img, display=False))
@@ -434,16 +443,17 @@ class Image_Thresholding:
                     optimal_threshold = j
 
             #Apply optimal threshold
-            self.processed_img = np.where(self.processed_img >= optimal_threshold, 1, 0)
-            
-            #####FIX####
-            self.axes2.axvline(x=optimal_threshold, color='black', linestyle='--')
-
+            self.processed_img = np.where(self.processed_img >= optimal_threshold / 255, 1, 0)
+        
         #Update display
         if self.processed_img.ndim == 2:
+            self.axes2.axvline(x=optimal_threshold, color='black', linestyle='--')
             self.axes3.imshow(self.processed_img, cmap='gray')
         else:
             self.axes3.imshow(self.processed_img)
+            colours = ['red', 'green', 'blue']
+            for i in range(3):
+                self.axes2.axvline(x=thresholds[i], color=colours[i], linestyle='--')
 
         self.histograms = self.display_histogram(self.processed_img)
         plt.draw()
@@ -452,12 +462,13 @@ class Image_Thresholding:
         """
         Applys adaptive thresholding method (Mean C approach)
         """
+        self.axes2.clear()
 
         #Initialize window size and offset
         window_size = 7
         offset = self.offset / 255
 
-        temp_img = self.processed_img
+        temp_img = self.processed_img.copy()
 
         #Check if grayscale
         if self.processed_img.ndim == 2:
@@ -467,7 +478,7 @@ class Image_Thresholding:
 
             #Iterate over each pixel of image
             for i in range(self.processed_img.shape[0]):
-                for j in range(self.processed_img[1]):
+                for j in range(self.processed_img.shape[1]):
 
                     #Get window around pixel, calculate the mean and apply the threshold
                     #with user inputted offset value
