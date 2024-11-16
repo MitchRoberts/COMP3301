@@ -74,25 +74,38 @@ class Assignment4:
         Setup buttons for different thresholding tasks as per assignment requirements.
         """
 
-        #Grayscale Image button
-        but_grayscale = plt.axes([0.05, 0.01, 0.15, 0.05])
-        button_grayscale = Button(but_grayscale, "Grayscale Image")
-        button_grayscale.on_clicked(lambda event: self.grayscale_img())
+        
 
         #Fourier Transform button
-        but_display_ft = plt.axes([0.25, 0.01, 0.15, 0.05])
+        but_display_ft = plt.axes([0.05, 0.01, 0.15, 0.05])
         button_display_ft = Button(but_display_ft, "Fourier Transform")
         button_display_ft.on_clicked(lambda event: self.ft_and_display())
 
-        btn_ifft = plt.axes([0.45, 0.01, 0.15, 0.05])
-        btn_ifft_button = Button(btn_ifft, 'Inverse Transform')
-        btn_ifft_button.on_clicked(lambda event: self.inverse_fourier_transform())
+        #Inverse fourier transform button
+        but_ifft = plt.axes([0.25, 0.01, 0.15, 0.05])
+        but_ifft_button = Button(but_ifft, 'Inverse Transform')
+        but_ifft_button.on_clicked(lambda event: self.inverse_fourier_transform())
 
-        #Button for applying noise removal
-        btn_filter = plt.axes([0.75, 0.01, 0.15, 0.05])
-        btn_filter_button = Button(btn_filter, 'Apply Filter')
-        btn_filter_button.on_clicked(lambda event: self.apply_lpf())
+        #Button for applying noise removal with LPF
+        but_filter = plt.axes([0.45, 0.01, 0.15, 0.05])
+        but_filter_button = Button(but_filter, 'Apply Filter')
+        but_filter_button.on_clicked(lambda event: self.apply_lpf())
+
+        #Button for Sboel edge detection
+        but_sobel = plt.axes([0.65, 0.01, 0.10, 0.05])
+        but_sobel_button = Button(but_sobel, "Sobel")
+        but_sobel_button.on_clicked(lambda event: self.sobel_edge())
+
+        #Button for Cannyedge detection
+        but_canny = plt.axes([0.85, 0.01, 0.10, 0.05])
+        but_canny_button = Button(but_canny, "Canny")
+        but_canny_button.on_clicked(lambda event: self.canny_edge_detection())
         
+        #Grayscale Image button
+        but_grayscale = plt.axes([0.43, 0.90, 0.15, 0.05])
+        button_grayscale = Button(but_grayscale, "Grayscale Image")
+        button_grayscale.on_clicked(lambda event: self.grayscale_img())
+
         #LPF value text input 
         lpf_box_txt = plt.axes([0.05, 0.90, 0.15, 0.05])
         lps_box = TextBox(lpf_box_txt, 'LPF Value', initial="30")
@@ -332,22 +345,171 @@ class Assignment4:
         self.update_display()
 
     def opencv_fft(self):
+        """
+        THIS FUNCTION IS FOR TESTING PURPOSES ONLY, 
+        TO ENSURE THAT MY OWN IMPLEMETATION IS WORKING AS EXPECTED
+        """
         img_float32 = np.float32(self.processed_img)
         dft = cv2.dft(img_float32, flags=cv2.DFT_COMPLEX_OUTPUT)
         
-        # Shift the zero-frequency component to the center of the spectrum
+        #Shift the zero-frequency component to the center of the spectrum
         dft_shift = np.fft.fftshift(dft)
         
-        # Compute the magnitude spectrum
+        #Compute the magnitude spectrum
         magnitude_spectrum = cv2.magnitude(dft_shift[:, :, 0], dft_shift[:, :, 1])
         
-        # Apply logarithmic scaling for better visualization
+        #Apply logarithmic scaling for better visualization
         magnitude_spectrum_log = np.log(magnitude_spectrum + 1)  # Adding 1 to avoid log(0)
         
-        # Normalize the result to fall between 0 and 1 for display
+        #Normalize the result to fall between 0 and 1 for display
         magnitude_spectrum_log = cv2.normalize(magnitude_spectrum_log, None, 0, 1, cv2.NORM_MINMAX)
         
         self.processed_img = magnitude_spectrum_log
+        self.update_display()
+
+    def sobel_gradiants(self, image):
+        """
+        Apply Sobel edge detection to the grayscale image.
+        """
+        if image.ndim != 2:
+            print("Image must be grayscale for edge detection")
+            return
+
+        #Sobel kernels
+        sobel_x = np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]])
+        sobel_y = np.array([[-1, -2, -1], [0, 0, 0], [1, 2, 1]])
+
+        #Pad the image
+        padded_image = np.pad(image, 1, mode='constant')
+        rows, cols = image.shape
+
+        #Initialize gradient matrices
+        grad_x = np.zeros((rows, cols))
+        grad_y = np.zeros((rows, cols))
+
+        #Apply Sobel filters
+        for i in range(rows):
+            for j in range(cols):
+                region = padded_image[i:i + 3, j:j + 3]
+                grad_x[i, j] = np.sum(region * sobel_x)
+                grad_y[i, j] = np.sum(region * sobel_y)
+        
+        return grad_x, grad_y
+
+
+    def sobel_edge(self):
+        """
+        Function to apply sobel edge detection
+        """
+        grad_x, grad_y = self.sobel_gradiants(self.processed_img)
+
+        #Compute gradient magnitude
+        grad_magnitude = np.sqrt(grad_x ** 2 + grad_y ** 2)
+        grad_magnitude = (grad_magnitude - grad_magnitude.min()) / (grad_magnitude.max() - grad_magnitude.min())
+        
+        #Update processed image and display
+        self.processed_img = grad_magnitude
+        self.update_display()
+
+    def gaussian_filter(self, image, kernel_size=5, sigma=1.4):
+        """
+        Apply Gaussian blur to reduce noise. Modified version of guassian filter
+        from assignment 2, but takes no user input values, just default values
+        """
+        #Create Gaussian kernel
+        ax = np.linspace(-(kernel_size // 2), kernel_size // 2, kernel_size)
+        gauss = np.exp(-0.5 * (ax / sigma) ** 2)
+        kernel = np.outer(gauss, gauss)
+        kernel /= kernel.sum()
+
+        #Convolve image with Gaussian kernel
+        padded_image = np.pad(image, kernel_size // 2, mode='constant')
+        rows, cols = image.shape
+        blurred_img = np.zeros_like(image)
+
+        for i in range(rows):
+            for j in range(cols):
+                region = padded_image[i:i + kernel_size, j:j + kernel_size]
+                blurred_img[i, j] = np.sum(region * kernel)
+        return blurred_img
+
+    def non_maximum_suppression(self, gradient_magnitude, gradient_angle):
+        """
+        Apply Non-Maximum Suppression to thin edges
+        """
+        rows, cols = gradient_magnitude.shape
+        nms = np.zeros((rows, cols), dtype=np.float64)
+        angle = gradient_angle * 180.0 / np.pi
+        angle[angle < 0] += 180
+
+        for i in range(1, rows - 1):
+            for j in range(1, cols - 1):
+                q, r = 255, 255
+                if (0 <= angle[i, j] < 22.5) or (157.5 <= angle[i, j] <= 180):
+                    q = gradient_magnitude[i, j + 1]
+                    r = gradient_magnitude[i, j - 1]
+                elif 22.5 <= angle[i, j] < 67.5:
+                    q = gradient_magnitude[i + 1, j - 1]
+                    r = gradient_magnitude[i - 1, j + 1]
+                elif 67.5 <= angle[i, j] < 112.5:
+                    q = gradient_magnitude[i + 1, j]
+                    r = gradient_magnitude[i - 1, j]
+                elif 112.5 <= angle[i, j] < 157.5:
+                    q = gradient_magnitude[i - 1, j - 1]
+                    r = gradient_magnitude[i + 1, j + 1]
+
+                if gradient_magnitude[i, j] >= q and gradient_magnitude[i, j] >= r:
+                    nms[i, j] = gradient_magnitude[i, j]
+                else:
+                    nms[i, j] = 0
+        return nms
+
+    def edge_tracking(self, strong_edges, weak_edges):
+        """
+        Function to track edges
+        """
+        rows, cols = strong_edges.shape
+        edges = np.copy(strong_edges)
+
+        for i in range(1, rows - 1):
+            for j in range(1, cols - 1):
+                if weak_edges[i, j] == 1:
+                    if np.any(strong_edges[i - 1:i + 2, j - 1:j + 2]):
+                        edges[i, j] = 1
+        return edges
+
+    def canny_edge_detection(self):
+        """
+        Function to apply Canny Edge detection
+        """
+        if self.processed_img.ndim != 2:
+            print("Image must be grayscale")
+            return
+
+        #Apply gaussian blur
+        blurred_img = self.gaussian_filter(self.processed_img, kernel_size=5, sigma=1.4)
+
+        #Compute gradients
+        grad_x, grad_y = self.sobel_gradiants(blurred_img)
+
+        #Compute gradient magnitude and direction
+        gradient_magnitude = np.sqrt(grad_x ** 2 + grad_y ** 2)
+        gradient_angle = np.arctan2(grad_y, grad_x)
+
+        #Non Maximum suppression
+        nms = self.non_maximum_suppression(gradient_magnitude, gradient_angle)
+
+        #Double thresholding
+        high_threshold = 0.2 * nms.max()
+        low_threshold = 0.1 * high_threshold
+        strong_edges = (nms >= high_threshold).astype(int)
+        weak_edges = ((nms >= low_threshold) & (nms < high_threshold)).astype(int)
+
+        #Edge Tracking 
+        edges = self.edge_tracking(strong_edges, weak_edges)
+
+        #Update and display the processed image
+        self.processed_img = edges
         self.update_display()
 
 
