@@ -4,8 +4,6 @@ import matplotlib.pyplot as plt
 from matplotlib.widgets import Button, TextBox
 from PIL import Image
 from PyQt5.QtWidgets import QApplication, QFileDialog
-import math
-import cv2
 
 class Assignment4:
 
@@ -74,8 +72,6 @@ class Assignment4:
         Setup buttons for different thresholding tasks as per assignment requirements.
         """
 
-        
-
         #Fourier Transform button
         but_display_ft = plt.axes([0.05, 0.01, 0.15, 0.05])
         button_display_ft = Button(but_display_ft, "Fourier Transform")
@@ -125,8 +121,7 @@ class Assignment4:
         if self.processed_img.ndim == 2:
             self.axes2.imshow(self.processed_img, cmap='gray')
         else:
-            self.axes2.imshow(self.processed_img)
-        
+            self.axes2.imshow(self.processed_img)  
         plt.draw() 
 
     def reset_image(self):
@@ -151,6 +146,7 @@ class Assignment4:
         """
         Applies a Low-Pass Filter (LPF) to the Fourier Transform without performing the IFFT.
         """
+        #Ensure f_transform exists
         if not hasattr(self, 'f_transform'):
             print("Perform Fourier Transform first!")
             return
@@ -158,16 +154,16 @@ class Assignment4:
         rows, cols = self.f_transform.shape
         center_row, center_col = rows // 2, cols // 2
 
-        # Create LPF mask
+        #Create LPF mask
         mask = np.zeros((rows, cols))
         y, x = np.ogrid[:rows, :cols]
         mask_area = (x - center_col)**2 + (y - center_row)**2 <= self.lpf**2
         mask[mask_area] = 1  # Retain low frequencies
 
-        # Apply the mask
+        #Apply the mask
         self.filtered_transform = self.f_transform * mask
 
-        # Update processed image to show the filtered Fourier transform
+        #Update processed image to show the filtered Fourier transform
         filtered_magnitude = np.abs(self.filtered_transform)
         filtered_magnitude_log = np.log(filtered_magnitude + 1)
         filtered_magnitude_log = (filtered_magnitude_log - filtered_magnitude_log.min()) / (
@@ -179,7 +175,7 @@ class Assignment4:
 
     def fft1d(self, x):
         """
-        Function to preform the 1D fourier transform
+        Function to apply the 1D fourier transform
         """
         N = len(x)
         if N <= 1:
@@ -191,7 +187,7 @@ class Assignment4:
 
     def i_fft1d(self, x):
         """
-        Function to preform the 1D inverse fourier transform
+        Function to apply the 1D inverse fourier transform
         """
         N = len(x)
         if N <= 1:
@@ -203,7 +199,7 @@ class Assignment4:
 
     def fft2d(self, image):
         """
-        Function to apply the 2D fourier transform using 1D functions
+        Function to apply the 2D fourier transform
         """
         
         #Apply 1D FT on each row
@@ -215,7 +211,7 @@ class Assignment4:
 
     def i_fft2d(self, image_ft):
         """
-        Function to apply the 2D inverse fourier transform using 1D functions
+        Function to apply the 2D inverse fourier transform
         """
         
         #Apply Inverse 1D IFT on each row
@@ -224,10 +220,10 @@ class Assignment4:
         #Apply Inverse 1D IFT on each column
         cols_ifft = np.array([self.i_fft1d(ft_col) for ft_col in rows_ift.T]).T
         rows, cols = image_ft.shape
+
         #Return the real part for the image 
         return np.abs(cols_ifft) / (rows * cols)
 
-    #Shift the zero frequency to the center manually
     def shift_frequency(self, f_transform):
         """
         Function to make sure fourier transform frequencies are proplery alligned
@@ -235,7 +231,7 @@ class Assignment4:
         """
         rows, cols = f_transform.shape
 
-        #Swap quadrants to shift the zero-frequency component to the center
+        #Swap quadrants to shift the zero-frequency component to center
         mid_row, mid_col = rows // 2, cols // 2
 
         shifted_f_transform = np.zeros_like(f_transform, dtype=f_transform.dtype)
@@ -260,8 +256,9 @@ class Assignment4:
         """
         Performs the Inverse Fourier Transform (IFFT) on the filtered Fourier Transform.
         """
+        #Ensure filtered_transform exists
         if not hasattr(self, 'filtered_transform'):
-            print("Apply LPF first!")
+            print("Apply LPF first")
             return
 
         # Shift the frequencies back to the original position
@@ -344,29 +341,6 @@ class Assignment4:
         #Display the result
         self.update_display()
 
-    def opencv_fft(self):
-        """
-        THIS FUNCTION IS FOR TESTING PURPOSES ONLY, 
-        TO ENSURE THAT MY OWN IMPLEMETATION IS WORKING AS EXPECTED
-        """
-        img_float32 = np.float32(self.processed_img)
-        dft = cv2.dft(img_float32, flags=cv2.DFT_COMPLEX_OUTPUT)
-        
-        #Shift the zero-frequency component to the center of the spectrum
-        dft_shift = np.fft.fftshift(dft)
-        
-        #Compute the magnitude spectrum
-        magnitude_spectrum = cv2.magnitude(dft_shift[:, :, 0], dft_shift[:, :, 1])
-        
-        #Apply logarithmic scaling for better visualization
-        magnitude_spectrum_log = np.log(magnitude_spectrum + 1)  # Adding 1 to avoid log(0)
-        
-        #Normalize the result to fall between 0 and 1 for display
-        magnitude_spectrum_log = cv2.normalize(magnitude_spectrum_log, None, 0, 1, cv2.NORM_MINMAX)
-        
-        self.processed_img = magnitude_spectrum_log
-        self.update_display()
-
     def sobel_gradiants(self, image):
         """
         Apply Sobel edge detection to the grayscale image.
@@ -442,23 +416,25 @@ class Assignment4:
         angle = gradient_angle * 180.0 / np.pi
         angle[angle < 0] += 180
 
+        #For each pixel compare direction of edge with left/right pixel accordingly
         for i in range(1, rows - 1):
             for j in range(1, cols - 1):
-                q, r = 255, 255
+                l, r = 255, 255
                 if (0 <= angle[i, j] < 22.5) or (157.5 <= angle[i, j] <= 180):
-                    q = gradient_magnitude[i, j + 1]
+                    l = gradient_magnitude[i, j + 1]
                     r = gradient_magnitude[i, j - 1]
                 elif 22.5 <= angle[i, j] < 67.5:
-                    q = gradient_magnitude[i + 1, j - 1]
+                    l = gradient_magnitude[i + 1, j - 1]
                     r = gradient_magnitude[i - 1, j + 1]
                 elif 67.5 <= angle[i, j] < 112.5:
-                    q = gradient_magnitude[i + 1, j]
+                    l = gradient_magnitude[i + 1, j]
                     r = gradient_magnitude[i - 1, j]
                 elif 112.5 <= angle[i, j] < 157.5:
-                    q = gradient_magnitude[i - 1, j - 1]
+                    l = gradient_magnitude[i - 1, j - 1]
                     r = gradient_magnitude[i + 1, j + 1]
 
-                if gradient_magnitude[i, j] >= q and gradient_magnitude[i, j] >= r:
+                #If pixel value is greater than or equa to neighbours, it's local max, otherwise, set to 0
+                if gradient_magnitude[i, j] >= l and gradient_magnitude[i, j] >= r:
                     nms[i, j] = gradient_magnitude[i, j]
                 else:
                     nms[i, j] = 0
@@ -471,6 +447,7 @@ class Assignment4:
         rows, cols = strong_edges.shape
         edges = np.copy(strong_edges)
 
+        #For each pixel on weak edge, check neighbours, and if any are strong edges, promote
         for i in range(1, rows - 1):
             for j in range(1, cols - 1):
                 if weak_edges[i, j] == 1:
@@ -482,10 +459,7 @@ class Assignment4:
         """
         Function to apply Canny Edge detection
         """
-        if self.processed_img.ndim != 2:
-            print("Image must be grayscale")
-            return
-
+    
         #Apply gaussian blur
         blurred_img = self.gaussian_filter(self.processed_img, kernel_size=5, sigma=1.4)
 
@@ -511,9 +485,6 @@ class Assignment4:
         #Update and display the processed image
         self.processed_img = edges
         self.update_display()
-
-
-
 
 if __name__ == "__main__":
     test = Assignment4()
