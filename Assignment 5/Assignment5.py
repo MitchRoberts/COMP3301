@@ -7,17 +7,13 @@ from PIL import Image
 
 class FaceTracking:
     def __init__(self, mode="face"):
-        # Load pre-trained Haar cascades
+
         self.face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
         self.eye_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_eye.xml")
         self.nose_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_mcs_nose.xml")
-        self.mouth_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_mcs_mouth.xml")
+        self.mouth_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_mcs_mouth.xml") 
 
-        # Check if Haar cascades are loaded properly
-        if self.face_cascade.empty() or self.eye_cascade.empty() or self.nose_cascade.empty() or self.mouth_cascade.empty():
-            raise ValueError("Failed to load Haar cascades. Ensure the files exist in the correct directory.")
-
-        # Set mode: "face" or "corners"
+        #Set mode: "face" or "corners"
         self.mode = mode
         self.input_type = None
 
@@ -48,21 +44,21 @@ class FaceTracking:
         """
         Detect corners on the input frame and highlight them using the Harris Corner Detection method.
         """
-        # Convert to grayscale
+        #Convert to grayscale
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         gray = np.float32(gray)
 
-        # Harris Corner Detection
+        #Harris Corner Detection
         dst = cv2.cornerHarris(gray, blockSize=2, ksize=3, k=0.04)
 
-        # Dilate the result to enhance visualization
+        #Dilate the result to enhance visualization
         dst = cv2.dilate(dst, None)
 
-        # Apply a threshold to identify strong corners
+        #Apply a threshold to identify strong corners
         threshold = 0.01 * dst.max()
         corners = (dst > threshold)
 
-        # Highlight the corners on the original frame
+        #Highlight the corners on the original frame
         frame[corners] = [0, 0, 255]  # Red color for Harris corners
 
         return frame
@@ -81,7 +77,7 @@ class FaceTracking:
             #Draw rectangle around the face
             cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
 
-            #Define regions of interest (ROI) for additional features
+            #Define regions of interest for additional features
             roi_gray = gray[y:y + h, x:x + w]
             roi_color = frame[y:y + h, x:x + w]
 
@@ -105,30 +101,25 @@ class FaceTracking:
     def start(self):
         if self.input_type == "image":
             #Load a static image for processing
-            try:
-                static_image = self.load_image_via_dialog()
-                static_image = (static_image * 255).astype(np.uint8)  # Convert back to uint8 for OpenCV
-                static_image = cv2.cvtColor(static_image, cv2.COLOR_RGB2BGR)  # Convert to BGR for OpenCV
+            static_image = self.load_image_via_dialog()
+            static_image = (static_image * 255).astype(np.uint8)  # Convert back to uint8 for OpenCV
+            static_image = cv2.cvtColor(static_image, cv2.COLOR_RGB2BGR)  # Convert to BGR for OpenCV
 
-                if self.mode == "corners":
-                    static_image = self.detect_corners(static_image)
-                elif self.mode == "face":
-                    static_image = self.detect_faces(static_image)
+            if self.mode == "corners":
+                static_image = self.detect_corners(static_image)
+            elif self.mode == "face":
+                static_image = self.detect_faces(static_image)
 
-                #Create a resizable OpenCV window
-                cv2.namedWindow("Image Processing", cv2.WINDOW_NORMAL)
-                cv2.imshow("Image Processing", static_image)
-                cv2.waitKey(0)  # Wait indefinitely until a key is pressed
-                cv2.destroyAllWindows()
-            except ValueError as e:
-                print(e)
+            #Create a resizable OpenCV window
+            cv2.namedWindow("Image Processing", cv2.WINDOW_NORMAL)
+            cv2.imshow("Image Processing", static_image)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
+
             return
 
-        #Default to webcam for processing
+        #Webcam for video
         cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
-
-        if not cap.isOpened():
-            raise ValueError("Failed to open webcam. Check if the webcam is connected or in use by another application.")
 
         while True:
             ret, frame = cap.read()
@@ -136,16 +127,16 @@ class FaceTracking:
                 print("Failed to grab frame")
                 break
 
-            # Perform operation based on the current mode
+            #Perform operation based on the current mode
             if self.mode == "face":
                 frame = self.detect_faces(frame)
             elif self.mode == "corners":
                 frame = self.detect_corners(frame)
 
-            # Display the video frame
+            #Display the video frame
             cv2.imshow("Webcam Processing", frame)
 
-            # Exit if 'q' is pressed or window is closed
+            #Exit if 'q' is pressed or window is closed
             key = cv2.waitKey(1)
             if key == ord('q'):
                 break
