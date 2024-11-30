@@ -9,7 +9,7 @@ class Assignment4:
 
     def __init__(self):
 
-         #Prompt the user to select an image file
+        #Prompt the user to select an image file
         self.image_array = self.load_image_via_dialog()
 
         self.f_transform = None
@@ -407,13 +407,13 @@ class Assignment4:
                 blurred_img[i, j] = np.sum(region * kernel)
         return blurred_img
 
-    def non_maximum_suppression(self, gradient_magnitude, gradient_angle):
+    def non_maximum_suppression(self, grad_magnitude, grad_angle):
         """
         Apply Non-Maximum Suppression to thin edges
         """
-        rows, cols = gradient_magnitude.shape
+        rows, cols = grad_magnitude.shape
         nms = np.zeros((rows, cols), dtype=np.float64)
-        angle = gradient_angle * 180.0 / np.pi
+        angle = grad_angle * 180.0 / np.pi
         angle[angle < 0] += 180
 
         #For each pixel compare direction of edge with left/right pixel accordingly
@@ -421,21 +421,21 @@ class Assignment4:
             for j in range(1, cols - 1):
                 l, r = 255, 255
                 if (0 <= angle[i, j] < 22.5) or (157.5 <= angle[i, j] <= 180):
-                    l = gradient_magnitude[i, j + 1]
-                    r = gradient_magnitude[i, j - 1]
+                    l = grad_magnitude[i, j + 1]
+                    r = grad_magnitude[i, j - 1]
                 elif 22.5 <= angle[i, j] < 67.5:
-                    l = gradient_magnitude[i + 1, j - 1]
-                    r = gradient_magnitude[i - 1, j + 1]
+                    l = grad_magnitude[i + 1, j - 1]
+                    r = grad_magnitude[i - 1, j + 1]
                 elif 67.5 <= angle[i, j] < 112.5:
-                    l = gradient_magnitude[i + 1, j]
-                    r = gradient_magnitude[i - 1, j]
+                    l = grad_magnitude[i + 1, j]
+                    r = grad_magnitude[i - 1, j]
                 elif 112.5 <= angle[i, j] < 157.5:
-                    l = gradient_magnitude[i - 1, j - 1]
-                    r = gradient_magnitude[i + 1, j + 1]
+                    l = grad_magnitude[i - 1, j - 1]
+                    r = grad_magnitude[i + 1, j + 1]
 
                 #If pixel value is greater than or equa to neighbours, it's local max, otherwise, set to 0
-                if gradient_magnitude[i, j] >= l and gradient_magnitude[i, j] >= r:
-                    nms[i, j] = gradient_magnitude[i, j]
+                if grad_magnitude[i, j] >= l and grad_magnitude[i, j] >= r:
+                    nms[i, j] = grad_magnitude[i, j]
                 else:
                     nms[i, j] = 0
         return nms
@@ -467,11 +467,11 @@ class Assignment4:
         grad_x, grad_y = self.sobel_gradiants(blurred_img)
 
         #Compute gradient magnitude and direction
-        gradient_magnitude = np.sqrt(grad_x ** 2 + grad_y ** 2)
-        gradient_angle = np.arctan2(grad_y, grad_x)
+        grad_magnitude = np.sqrt(grad_x ** 2 + grad_y ** 2)
+        grad_angle = np.arctan2(grad_y, grad_x)
 
         #Non Maximum suppression
-        nms = self.non_maximum_suppression(gradient_magnitude, gradient_angle)
+        nms = self.non_maximum_suppression(grad_magnitude, grad_angle)
 
         #Double thresholding
         high_threshold = 0.2 * nms.max()
