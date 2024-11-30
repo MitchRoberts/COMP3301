@@ -104,7 +104,7 @@ class FaceTracking:
 
     def start(self):
         if self.input_type == "image":
-            # Load a static image for processing
+            #Load a static image for processing
             try:
                 static_image = self.load_image_via_dialog()
                 static_image = (static_image * 255).astype(np.uint8)  # Convert back to uint8 for OpenCV
@@ -115,7 +115,7 @@ class FaceTracking:
                 elif self.mode == "face":
                     static_image = self.detect_faces(static_image)
 
-                # Create a resizable OpenCV window
+                #Create a resizable OpenCV window
                 cv2.namedWindow("Image Processing", cv2.WINDOW_NORMAL)
                 cv2.imshow("Image Processing", static_image)
                 cv2.waitKey(0)  # Wait indefinitely until a key is pressed
@@ -124,8 +124,8 @@ class FaceTracking:
                 print(e)
             return
 
-        # Default to webcam for processing
-        cap = cv2.VideoCapture(0)
+        #Default to webcam for processing
+        cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
 
         if not cap.isOpened():
             raise ValueError("Failed to open webcam. Check if the webcam is connected or in use by another application.")
