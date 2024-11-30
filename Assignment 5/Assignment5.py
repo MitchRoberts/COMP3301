@@ -59,7 +59,7 @@ class FaceTracking:
         corners = (dst > threshold)
 
         #Highlight the corners on the original frame
-        frame[corners] = [0, 0, 255]  # Red color for Harris corners
+        frame[corners] = [0, 0, 255] 
 
         return frame
 
@@ -102,8 +102,8 @@ class FaceTracking:
         if self.input_type == "image":
             #Load a static image for processing
             static_image = self.load_image_via_dialog()
-            static_image = (static_image * 255).astype(np.uint8)  # Convert back to uint8 for OpenCV
-            static_image = cv2.cvtColor(static_image, cv2.COLOR_RGB2BGR)  # Convert to BGR for OpenCV
+            static_image = (static_image * 255).astype(np.uint8) 
+            static_image = cv2.cvtColor(static_image, cv2.COLOR_RGB2BGR) 
 
             if self.mode == "corners":
                 static_image = self.detect_corners(static_image)
@@ -148,13 +148,13 @@ class FaceTracking:
 
 
 if __name__ == "__main__":
-    # Ask user for input type
+    #Ask user for input type
     input_type = input("Enter input type (webcam or image): ").strip().lower()
     if input_type not in ["webcam", "image"]:
         print("Invalid input type. Defaulting to webcam.")
         input_type = "webcam"
 
-    # Ask user for mode
+    #Ask user for mode
     mode = input("Enter mode (face or corners): ").strip().lower()
     if mode not in ["face", "corners"]:
         print("Invalid mode. Defaulting to face tracking.")
